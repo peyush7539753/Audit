@@ -90,10 +90,23 @@ const Dashboard: React.FC = () => {
     format?: 'number' | 'currency';
   }> = ({ title, value, icon: Icon, color, format = 'number' }) => {
     const formatValue = (val: number | string) => {
-      if (format === 'currency' && typeof val === 'number') {
-        return `$${val.toLocaleString()}`;
+      // Handle undefined, null, or invalid values
+      if (val === undefined || val === null || val === '') {
+        return 'N/A';
       }
-      return val.toLocaleString();
+      
+      // Convert to number if it's a string
+      const numVal = typeof val === 'string' ? parseFloat(val) : val;
+      
+      // Check if it's a valid number
+      if (isNaN(numVal)) {
+        return 'N/A';
+      }
+      
+      if (format === 'currency') {
+        return `$${numVal.toLocaleString()}`;
+      }
+      return numVal.toLocaleString();
     };
 
     return (
@@ -224,6 +237,32 @@ const Dashboard: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Database Setup Notice */}
+      {stats.totalEmployees === 0 && stats.totalDepartments === 0 && stats.totalJobs === 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-yellow-800">Database Setup Required</h3>
+              <div className="mt-2 text-sm text-yellow-700">
+                <p>It looks like your Supabase database hasn't been set up yet. To get started:</p>
+                <ol className="mt-2 list-decimal list-inside space-y-1">
+                  <li>Open your Supabase project dashboard</li>
+                  <li>Go to the SQL Editor</li>
+                  <li>Run the SQL script from the SUPABASE_SETUP.md file</li>
+                  <li>Add your Supabase credentials to the .env file</li>
+                </ol>
+                <p className="mt-2">Once set up, you can start adding employees, departments, and other data to see meaningful statistics here.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
