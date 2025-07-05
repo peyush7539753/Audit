@@ -4,10 +4,13 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.')
+  console.warn('Missing Supabase environment variables. Using fallback mode.')
+  console.warn('Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = supabaseUrl && supabaseAnonKey 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null
 
 // Database table names
 export const TABLES = {
@@ -67,6 +70,8 @@ export type Database = {
           location_id: string
           location_name: string
           address_id: string
+          capacity: number
+          facilities: string[]
           created_at: string
           updated_at: string
         }
@@ -74,6 +79,8 @@ export type Database = {
           location_id?: string
           location_name: string
           address_id: string
+          capacity?: number
+          facilities?: string[]
           created_at?: string
           updated_at?: string
         }
@@ -81,6 +88,8 @@ export type Database = {
           location_id?: string
           location_name?: string
           address_id?: string
+          capacity?: number
+          facilities?: string[]
           created_at?: string
           updated_at?: string
         }
@@ -91,6 +100,7 @@ export type Database = {
           department_name: string
           location_id: string | null
           head_id: string | null
+          budget: number
           created_at: string
           updated_at: string
         }
@@ -99,6 +109,7 @@ export type Database = {
           department_name: string
           location_id?: string | null
           head_id?: string | null
+          budget?: number
           created_at?: string
           updated_at?: string
         }
@@ -107,6 +118,7 @@ export type Database = {
           department_name?: string
           location_id?: string | null
           head_id?: string | null
+          budget?: number
           created_at?: string
           updated_at?: string
         }
@@ -230,6 +242,8 @@ export type Database = {
           end_date: string | null
           status: string | null
           department_id: string | null
+          budget: number
+          description: string
           created_at: string
           updated_at: string
         }
@@ -240,6 +254,8 @@ export type Database = {
           end_date?: string | null
           status?: string | null
           department_id?: string | null
+          budget?: number
+          description?: string
           created_at?: string
           updated_at?: string
         }
@@ -250,6 +266,8 @@ export type Database = {
           end_date?: string | null
           status?: string | null
           department_id?: string | null
+          budget?: number
+          description?: string
           created_at?: string
           updated_at?: string
         }
@@ -261,6 +279,8 @@ export type Database = {
           project_id: string
           role: string
           assigned_date: string
+          end_date: string | null
+          status: string
           created_at: string
           updated_at: string
         }
@@ -270,6 +290,8 @@ export type Database = {
           project_id: string
           role: string
           assigned_date?: string
+          end_date?: string | null
+          status?: string
           created_at?: string
           updated_at?: string
         }
@@ -279,6 +301,8 @@ export type Database = {
           project_id?: string
           role?: string
           assigned_date?: string
+          end_date?: string | null
+          status?: string
           created_at?: string
           updated_at?: string
         }
@@ -291,6 +315,7 @@ export type Database = {
           check_in_time: string | null
           check_out_time: string | null
           status: string | null
+          notes: string | null
           created_at: string
           updated_at: string
         }
@@ -301,6 +326,7 @@ export type Database = {
           check_in_time?: string | null
           check_out_time?: string | null
           status?: string | null
+          notes?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -311,6 +337,7 @@ export type Database = {
           check_in_time?: string | null
           check_out_time?: string | null
           status?: string | null
+          notes?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -324,6 +351,7 @@ export type Database = {
           end_date: string
           status: string | null
           reason: string | null
+          approved_by: string | null
           created_at: string
           updated_at: string
         }
@@ -335,6 +363,7 @@ export type Database = {
           end_date: string
           status?: string | null
           reason?: string | null
+          approved_by?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -346,6 +375,7 @@ export type Database = {
           end_date?: string
           status?: string | null
           reason?: string | null
+          approved_by?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -358,6 +388,9 @@ export type Database = {
           review_date: string
           rating: number | null
           comments: string | null
+          goals: string | null
+          achievements: string | null
+          areas_for_improvement: string | null
           created_at: string
           updated_at: string
         }
@@ -368,6 +401,9 @@ export type Database = {
           review_date?: string
           rating?: number | null
           comments?: string | null
+          goals?: string | null
+          achievements?: string | null
+          areas_for_improvement?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -378,6 +414,9 @@ export type Database = {
           review_date?: string
           rating?: number | null
           comments?: string | null
+          goals?: string | null
+          achievements?: string | null
+          areas_for_improvement?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -391,6 +430,8 @@ export type Database = {
           end_date: string | null
           trainer_name: string | null
           department_id: string | null
+          max_participants: number
+          cost: number
           created_at: string
           updated_at: string
         }
@@ -402,6 +443,8 @@ export type Database = {
           end_date?: string | null
           trainer_name?: string | null
           department_id?: string | null
+          max_participants?: number
+          cost?: number
           created_at?: string
           updated_at?: string
         }
@@ -413,6 +456,8 @@ export type Database = {
           end_date?: string | null
           trainer_name?: string | null
           department_id?: string | null
+          max_participants?: number
+          cost?: number
           created_at?: string
           updated_at?: string
         }
@@ -423,6 +468,10 @@ export type Database = {
           employee_id: string
           training_id: string
           status: string | null
+          enrollment_date: string
+          completion_date: string | null
+          score: number | null
+          certificate: string | null
           created_at: string
           updated_at: string
         }
@@ -431,6 +480,10 @@ export type Database = {
           employee_id: string
           training_id: string
           status?: string | null
+          enrollment_date?: string
+          completion_date?: string | null
+          score?: number | null
+          certificate?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -439,6 +492,10 @@ export type Database = {
           employee_id?: string
           training_id?: string
           status?: string | null
+          enrollment_date?: string
+          completion_date?: string | null
+          score?: number | null
+          certificate?: string | null
           created_at?: string
           updated_at?: string
         }

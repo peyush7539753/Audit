@@ -66,6 +66,8 @@ CREATE TABLE IF NOT EXISTS locations (
     location_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     location_name TEXT NOT NULL,
     address_id UUID NOT NULL REFERENCES addresses(address_id) ON DELETE CASCADE,
+    capacity INTEGER DEFAULT 0,
+    facilities TEXT[] DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -76,6 +78,7 @@ CREATE TABLE IF NOT EXISTS departments (
     department_name TEXT NOT NULL,
     location_id UUID REFERENCES locations(location_id) ON DELETE SET NULL,
     head_id UUID, -- Will reference employees(employee_id)
+    budget NUMERIC(12,2) DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -84,9 +87,9 @@ CREATE TABLE IF NOT EXISTS departments (
 CREATE TABLE IF NOT EXISTS jobs (
     job_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     job_title TEXT NOT NULL,
-    min_salary NUMERIC(10,2),
-    max_salary NUMERIC(10,2),
-    job_description TEXT,
+    min_salary NUMERIC(10,2) DEFAULT 0,
+    max_salary NUMERIC(10,2) DEFAULT 0,
+    job_description TEXT DEFAULT '',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -97,15 +100,15 @@ CREATE TABLE IF NOT EXISTS employees (
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     dob DATE,
-    gender TEXT CHECK (gender IN ('Male', 'Female', 'Other')),
+    gender TEXT CHECK (gender IN ('MALE', 'FEMALE', 'OTHER')) DEFAULT 'OTHER',
     email TEXT UNIQUE NOT NULL,
-    phone_number TEXT,
+    phone_number TEXT DEFAULT '',
     address_id UUID REFERENCES addresses(address_id) ON DELETE SET NULL,
     department_id UUID REFERENCES departments(department_id) ON DELETE SET NULL,
     job_id UUID REFERENCES jobs(job_id) ON DELETE SET NULL,
     hire_date DATE DEFAULT CURRENT_DATE,
     manager_id UUID REFERENCES employees(employee_id) ON DELETE SET NULL,
-    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'terminated')),
+    status TEXT DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'INACTIVE', 'TERMINATED')),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -132,8 +135,10 @@ CREATE TABLE IF NOT EXISTS projects (
     project_name TEXT NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE,
-    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'completed', 'on_hold', 'cancelled')),
+    status TEXT DEFAULT 'PLANNING' CHECK (status IN ('PLANNING', 'IN_PROGRESS', 'COMPLETED', 'ON_HOLD', 'CANCELLED')),
     department_id UUID REFERENCES departments(department_id) ON DELETE SET NULL,
+    budget NUMERIC(12,2) DEFAULT 0,
+    description TEXT DEFAULT '',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -145,6 +150,8 @@ CREATE TABLE IF NOT EXISTS employee_project_assignments (
     project_id UUID NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
     role TEXT NOT NULL,
     assigned_date DATE DEFAULT CURRENT_DATE,
+    end_date DATE,
+    status TEXT DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'COMPLETED', 'REMOVED')),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(employee_id, project_id)
@@ -155,9 +162,10 @@ CREATE TABLE IF NOT EXISTS attendances (
     attendance_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     employee_id UUID NOT NULL REFERENCES employees(employee_id) ON DELETE CASCADE,
     date DATE NOT NULL,
-    check_in_time TIME,
-    check_out_time TIME,
-    status TEXT DEFAULT 'present' CHECK (status IN ('present', 'absent', 'leave', 'half_day')),
+    check_in_time TIMESTAMPTZ,
+    check_out_time TIMESTAMPTZ,
+    status TEXT DEFAULT 'PRESENT' CHECK (status IN ('PRESENT', 'ABSENT', 'LEAVE', 'HALF_DAY')),
+    notes TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(employee_id, date)
@@ -167,11 +175,12 @@ CREATE TABLE IF NOT EXISTS attendances (
 CREATE TABLE IF NOT EXISTS leaves (
     leave_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     employee_id UUID NOT NULL REFERENCES employees(employee_id) ON DELETE CASCADE,
-    leave_type TEXT NOT NULL CHECK (leave_type IN ('sick', 'vacation', 'personal', 'maternity', 'paternity', 'emergency')),
+    leave_type TEXT NOT NULL CHECK (leave_type IN ('SICK', 'VACATION', 'PERSONAL', 'MATERNITY', 'PATERNITY', 'EMERGENCY')),
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
-    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
-    reason TEXT,
+    status TEXT DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+    reason TEXT DEFAULT '',
+    approved_by UUID REFERENCES employees(employee_id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -182,8 +191,11 @@ CREATE TABLE IF NOT EXISTS performance_reviews (
     employee_id UUID NOT NULL REFERENCES employees(employee_id) ON DELETE CASCADE,
     reviewer_id UUID NOT NULL REFERENCES employees(employee_id) ON DELETE CASCADE,
     review_date DATE DEFAULT CURRENT_DATE,
-    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
-    comments TEXT,
+    rating INTEGER CHECK (rating >= 1 AND rating <= 5) DEFAULT 1,
+    comments TEXT DEFAULT '',
+    goals TEXT DEFAULT '',
+    achievements TEXT DEFAULT '',
+    areas_for_improvement TEXT DEFAULT '',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -192,11 +204,13 @@ CREATE TABLE IF NOT EXISTS performance_reviews (
 CREATE TABLE IF NOT EXISTS trainings (
     training_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     training_title TEXT NOT NULL,
-    description TEXT,
+    description TEXT DEFAULT '',
     start_date DATE NOT NULL,
     end_date DATE,
-    trainer_name TEXT,
+    trainer_name TEXT DEFAULT '',
     department_id UUID REFERENCES departments(department_id) ON DELETE SET NULL,
+    max_participants INTEGER DEFAULT 0,
+    cost NUMERIC(10,2) DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -206,7 +220,11 @@ CREATE TABLE IF NOT EXISTS employee_trainings (
     employee_training_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     employee_id UUID NOT NULL REFERENCES employees(employee_id) ON DELETE CASCADE,
     training_id UUID NOT NULL REFERENCES trainings(training_id) ON DELETE CASCADE,
-    status TEXT DEFAULT 'enrolled' CHECK (status IN ('enrolled', 'completed', 'dropped')),
+    status TEXT DEFAULT 'ENROLLED' CHECK (status IN ('ENROLLED', 'IN_PROGRESS', 'COMPLETED', 'DROPPED')),
+    enrollment_date DATE DEFAULT CURRENT_DATE,
+    completion_date DATE,
+    score INTEGER CHECK (score >= 0 AND score <= 100),
+    certificate TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(employee_id, training_id)
@@ -303,6 +321,22 @@ CREATE POLICY "Allow all for authenticated users" ON performance_reviews FOR ALL
 CREATE POLICY "Allow all for authenticated users" ON trainings FOR ALL TO authenticated USING (true);
 CREATE POLICY "Allow all for authenticated users" ON employee_trainings FOR ALL TO authenticated USING (true);
 CREATE POLICY "Allow all for authenticated users" ON audit_logs FOR SELECT TO authenticated USING (true);
+
+-- Allow anonymous access for development (remove in production)
+CREATE POLICY "Allow all for anonymous users" ON addresses FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anonymous users" ON locations FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anonymous users" ON departments FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anonymous users" ON jobs FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anonymous users" ON employees FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anonymous users" ON salaries FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anonymous users" ON projects FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anonymous users" ON employee_project_assignments FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anonymous users" ON attendances FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anonymous users" ON leaves FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anonymous users" ON performance_reviews FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anonymous users" ON trainings FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anonymous users" ON employee_trainings FOR ALL TO anon USING (true);
+CREATE POLICY "Allow all for anonymous users" ON audit_logs FOR SELECT TO anon USING (true);
 ```
 
 ## 🔐 Authentication Setup
@@ -335,7 +369,7 @@ The system uses Supabase's built-in authentication. To enable user access:
 ✅ **Advanced Search**: Query capabilities across all entities
 ✅ **Real-time Updates**: Immediate database synchronization
 ✅ **Data Integrity**: Referential integrity and constraints
-✅ **User Security**: Authentication and authorization
+✅ **Fallback System**: Graceful degradation to in-memory storage
 
 ## 🔄 How It Works
 

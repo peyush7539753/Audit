@@ -30,6 +30,13 @@ class DataService {
   
   private useSupabase = true; // Toggle for Supabase vs mock data
 
+  // Check if Supabase is available
+  private isSupabaseAvailable(): boolean {
+    return this.useSupabase && typeof window !== 'undefined' && 
+           import.meta.env.VITE_SUPABASE_URL && 
+           import.meta.env.VITE_SUPABASE_ANON_KEY;
+  }
+
   // Generic CRUD operations with Supabase integration
   private async createEntity<T extends { id: string; createdAt: Date; updatedAt: Date }>(
     collection: T[],
@@ -45,9 +52,17 @@ class DataService {
       updatedAt: new Date()
     } as T;
     
-    if (this.useSupabase) {
+    if (this.isSupabaseAvailable()) {
       try {
         const created = await supabaseService.create<T>(tableName, entityType, newEntity);
+        
+        // Update local collection
+        const index = collection.findIndex(item => item.id === created.id);
+        if (index >= 0) {
+          collection[index] = created;
+        } else {
+          collection.push(created);
+        }
         
         // Log audit record
         await auditService.logAction(entityType, created.id, 'CREATE', [
@@ -82,13 +97,19 @@ class DataService {
     tableName: string,
     idField: string
   ): Promise<T | null> {
-    if (this.useSupabase) {
+    if (this.isSupabaseAvailable()) {
       try {
         const oldEntity = await supabaseService.getById<T>(tableName, entityType, id, idField);
         if (!oldEntity) return null;
         
         const updated = await supabaseService.update<T>(tableName, entityType, id, idField, updates);
         if (!updated) return null;
+        
+        // Update local collection
+        const index = collection.findIndex(item => item.id === id);
+        if (index >= 0) {
+          collection[index] = updated;
+        }
         
         // Calculate changes for audit
         const changes = Object.entries(updates).map(([field, newValue]) => ({
@@ -145,9 +166,16 @@ class DataService {
     tableName: string,
     idField: string
   ): Promise<boolean> {
-    if (this.useSupabase) {
+    if (this.isSupabaseAvailable()) {
       try {
         const success = await supabaseService.delete(tableName, entityType, id, idField);
+        
+        // Update local collection
+        const index = collection.findIndex(item => item.id === id);
+        if (index >= 0) {
+          collection.splice(index, 1);
+        }
+        
         await auditService.logAction(entityType, id, 'DELETE', [
           { field: 'entity', oldValue: `${entityType} record`, newValue: null }
         ], 'current-user', 'Current User');
@@ -182,9 +210,13 @@ class DataService {
     entityType: string,
     tableName: string
   ): Promise<T[]> {
-    if (this.useSupabase) {
+    if (this.isSupabaseAvailable()) {
       try {
-        return await supabaseService.getAll<T>(tableName, entityType);
+        const data = await supabaseService.getAll<T>(tableName, entityType);
+        // Update local collection
+        collection.length = 0;
+        collection.push(...data);
+        return data;
       } catch (error) {
         console.error(`Supabase getAll failed for ${entityType}, using fallback:`, error);
         return [...collection];
@@ -201,7 +233,7 @@ class DataService {
     tableName: string,
     idField: string
   ): Promise<T | null> {
-    if (this.useSupabase) {
+    if (this.isSupabaseAvailable()) {
       try {
         return await supabaseService.getById<T>(tableName, entityType, id, idField);
       } catch (error) {
@@ -586,7 +618,7 @@ class DataService {
       throw new Error(`Unsupported entity type: ${entityType}`);
     }
 
-    if (this.useSupabase) {
+    if (this.isSupabaseAvailable()) {
       try {
         return await supabaseService.restoreEntity(mapping.table, entityType, entityId, mapping.idField, restoredData);
       } catch (error) {

@@ -6,8 +6,14 @@ import {
 } from '../types'
 
 class SupabaseService {
+  private isAvailable(): boolean {
+    return supabase !== null
+  }
+
   // Helper function to convert database row to application entity
   private convertDatabaseToEntity<T>(row: any, entityType: string): T {
+    if (!row) return row
+    
     const converted = { ...row }
     
     // Convert database field names to application field names
@@ -193,6 +199,8 @@ class SupabaseService {
 
   // Helper function to convert application entity to database row
   private convertEntityToDatabase(entity: any, entityType: string): any {
+    if (!entity) return entity
+    
     const converted = { ...entity }
     
     switch (entityType) {
@@ -213,6 +221,8 @@ class SupabaseService {
           location_id: entity.id,
           location_name: entity.locationName,
           address_id: entity.addressId,
+          capacity: entity.capacity,
+          facilities: entity.facilities,
           created_at: entity.createdAt?.toISOString(),
           updated_at: entity.updatedAt?.toISOString()
         }
@@ -223,6 +233,7 @@ class SupabaseService {
           department_name: entity.departmentName,
           location_id: entity.locationId,
           head_id: entity.headId,
+          budget: entity.budget,
           created_at: entity.createdAt?.toISOString(),
           updated_at: entity.updatedAt?.toISOString()
         }
@@ -276,6 +287,8 @@ class SupabaseService {
           end_date: entity.endDate?.toISOString().split('T')[0],
           status: entity.status,
           department_id: entity.departmentId,
+          budget: entity.budget,
+          description: entity.description,
           created_at: entity.createdAt?.toISOString(),
           updated_at: entity.updatedAt?.toISOString()
         }
@@ -287,6 +300,8 @@ class SupabaseService {
           project_id: entity.projectId,
           role: entity.role,
           assigned_date: entity.assignedDate?.toISOString().split('T')[0],
+          end_date: entity.endDate?.toISOString().split('T')[0],
+          status: entity.status,
           created_at: entity.createdAt?.toISOString(),
           updated_at: entity.updatedAt?.toISOString()
         }
@@ -299,6 +314,7 @@ class SupabaseService {
           check_in_time: entity.checkInTime?.toISOString(),
           check_out_time: entity.checkOutTime?.toISOString(),
           status: entity.status,
+          notes: entity.notes,
           created_at: entity.createdAt?.toISOString(),
           updated_at: entity.updatedAt?.toISOString()
         }
@@ -312,6 +328,7 @@ class SupabaseService {
           end_date: entity.endDate?.toISOString().split('T')[0],
           status: entity.status,
           reason: entity.reason,
+          approved_by: entity.approvedBy,
           created_at: entity.createdAt?.toISOString(),
           updated_at: entity.updatedAt?.toISOString()
         }
@@ -324,6 +341,9 @@ class SupabaseService {
           review_date: entity.reviewDate?.toISOString().split('T')[0],
           rating: entity.rating,
           comments: entity.comments,
+          goals: entity.goals,
+          achievements: entity.achievements,
+          areas_for_improvement: entity.areasForImprovement,
           created_at: entity.createdAt?.toISOString(),
           updated_at: entity.updatedAt?.toISOString()
         }
@@ -337,6 +357,8 @@ class SupabaseService {
           end_date: entity.endDate?.toISOString().split('T')[0],
           trainer_name: entity.trainerName,
           department_id: entity.departmentId,
+          max_participants: entity.maxParticipants,
+          cost: entity.cost,
           created_at: entity.createdAt?.toISOString(),
           updated_at: entity.updatedAt?.toISOString()
         }
@@ -347,6 +369,10 @@ class SupabaseService {
           employee_id: entity.employeeId,
           training_id: entity.trainingId,
           status: entity.status,
+          enrollment_date: entity.enrollmentDate?.toISOString().split('T')[0],
+          completion_date: entity.completionDate?.toISOString().split('T')[0],
+          score: entity.score,
+          certificate: entity.certificate,
           created_at: entity.createdAt?.toISOString(),
           updated_at: entity.updatedAt?.toISOString()
         }
@@ -358,9 +384,13 @@ class SupabaseService {
 
   // Generic CRUD operations
   async create<T>(tableName: string, entityType: string, data: any): Promise<T> {
+    if (!this.isAvailable()) {
+      throw new Error('Supabase is not available')
+    }
+
     const dbData = this.convertEntityToDatabase(data, entityType)
     
-    const { data: result, error } = await supabase
+    const { data: result, error } = await supabase!
       .from(tableName)
       .insert(dbData)
       .select()
@@ -374,7 +404,11 @@ class SupabaseService {
   }
 
   async getAll<T>(tableName: string, entityType: string): Promise<T[]> {
-    const { data, error } = await supabase
+    if (!this.isAvailable()) {
+      throw new Error('Supabase is not available')
+    }
+
+    const { data, error } = await supabase!
       .from(tableName)
       .select('*')
       .order('created_at', { ascending: false })
@@ -383,11 +417,15 @@ class SupabaseService {
       throw new Error(`Failed to fetch ${entityType}s: ${error.message}`)
     }
     
-    return data.map(row => this.convertDatabaseToEntity<T>(row, entityType))
+    return (data || []).map(row => this.convertDatabaseToEntity<T>(row, entityType))
   }
 
   async getById<T>(tableName: string, entityType: string, id: string, idField: string): Promise<T | null> {
-    const { data, error } = await supabase
+    if (!this.isAvailable()) {
+      throw new Error('Supabase is not available')
+    }
+
+    const { data, error } = await supabase!
       .from(tableName)
       .select('*')
       .eq(idField, id)
@@ -404,9 +442,13 @@ class SupabaseService {
   }
 
   async update<T>(tableName: string, entityType: string, id: string, idField: string, updates: any): Promise<T | null> {
+    if (!this.isAvailable()) {
+      throw new Error('Supabase is not available')
+    }
+
     const dbUpdates = this.convertEntityToDatabase({ ...updates, updatedAt: new Date() }, entityType)
     
-    const { data, error } = await supabase
+    const { data, error } = await supabase!
       .from(tableName)
       .update(dbUpdates)
       .eq(idField, id)
@@ -421,7 +463,11 @@ class SupabaseService {
   }
 
   async delete(tableName: string, entityType: string, id: string, idField: string): Promise<boolean> {
-    const { error } = await supabase
+    if (!this.isAvailable()) {
+      throw new Error('Supabase is not available')
+    }
+
+    const { error } = await supabase!
       .from(tableName)
       .delete()
       .eq(idField, id)
@@ -435,7 +481,11 @@ class SupabaseService {
 
   // Audit log operations
   async createAuditLog(auditRecord: Omit<AuditRecord, 'id'>): Promise<void> {
-    const { error } = await supabase
+    if (!this.isAvailable()) {
+      return // Silently fail if Supabase is not available
+    }
+
+    const { error } = await supabase!
       .from(TABLES.AUDIT_LOGS)
       .insert({
         table_name: auditRecord.entityType,
@@ -464,7 +514,11 @@ class SupabaseService {
   }
 
   async getAuditLogs(limit: number = 100): Promise<AuditRecord[]> {
-    const { data, error } = await supabase
+    if (!this.isAvailable()) {
+      return []
+    }
+
+    const { data, error } = await supabase!
       .from(TABLES.AUDIT_LOGS)
       .select('*')
       .order('timestamp', { ascending: false })
@@ -474,7 +528,7 @@ class SupabaseService {
       throw new Error(`Failed to fetch audit logs: ${error.message}`)
     }
     
-    return data.map(row => ({
+    return (data || []).map(row => ({
       id: row.id,
       entityType: row.table_name,
       entityId: row.record_id,
@@ -496,7 +550,11 @@ class SupabaseService {
   }
 
   async getEntityAuditHistory(entityType: string, entityId: string): Promise<AuditRecord[]> {
-    const { data, error } = await supabase
+    if (!this.isAvailable()) {
+      return []
+    }
+
+    const { data, error } = await supabase!
       .from(TABLES.AUDIT_LOGS)
       .select('*')
       .eq('table_name', entityType)
@@ -507,7 +565,7 @@ class SupabaseService {
       throw new Error(`Failed to fetch entity audit history: ${error.message}`)
     }
     
-    return data.map(row => ({
+    return (data || []).map(row => ({
       id: row.id,
       entityType: row.table_name,
       entityId: row.record_id,
@@ -530,9 +588,13 @@ class SupabaseService {
 
   // Entity restoration
   async restoreEntity(tableName: string, entityType: string, id: string, idField: string, restoredData: any): Promise<boolean> {
+    if (!this.isAvailable()) {
+      throw new Error('Supabase is not available')
+    }
+
     const dbData = this.convertEntityToDatabase({ ...restoredData, updatedAt: new Date() }, entityType)
     
-    const { error } = await supabase
+    const { error } = await supabase!
       .from(tableName)
       .update(dbData)
       .eq(idField, id)
